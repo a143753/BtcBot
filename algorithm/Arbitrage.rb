@@ -1,6 +1,5 @@
 # coding: utf-8
 require 'rubygems'
-require 'monkey-patch'
 require 'yaml'
 require 'bigdecimal'
 require 'utils/BotUtils.rb'

@@ -1,7 +1,6 @@
 # coding: utf-8
 require 'rubygems'
 require 'json'
-require 'monkey-patch'
 require 'net/http'
 require 'net/https'
 require 'openssl'
