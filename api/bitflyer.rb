@@ -232,6 +232,8 @@ module BitFlyer
           when "BTC"
             ret[:btc]     = BigDecimal.new(e["available"],10)
             ret[:btc_ttl] = BigDecimal.new(e["amount"],10)
+          when "ETH"
+            ;
           else
             ret[:success] = false
           end

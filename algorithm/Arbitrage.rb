@@ -11,14 +11,7 @@ class Arbitrage
   # mkt_x = { :name => str, :papi => public_api, :tapi => trade_api }
   def initialize mkt_a, mkt_b, mkt_c, mkt_d, log_dir
     @mkt = [ mkt_a, mkt_b, mkt_c, mkt_d ]
-#  def initialize mkt_a, mkt_b, mkt_c
-#    @mkt = [ mkt_a, mkt_b, mkt_c ]
     @log = File.open(Time.now.strftime("#{log_dir}/arb_%Y%m%d%H%M%S") + ".log", "w")
-
-    # 最低売買単位は最も大きいものに合わせる
-    #    @uVol = max( max( max( mkt_a[:rule][:uVol], mkt_b[:rule][:uVol] ), mkt_c[:rule][:uVol] ), mkt_d[:rule][:uVol])
-    # @uVol = max( max( mkt_a[:rule][:uVol], mkt_b[:rule][:uVol] ), mkt_c[:rule][:uVol] )
-    # printf("@uVol = %f\n", @uVol )
   end
 
   def updateAccount
@@ -31,10 +24,10 @@ class Arbitrage
         return false
       end
       @log.printf("%s: JPY %f, %f(In Use), BTC %f, %f(In Use)\n",m[:name],
-             res[:jpy],
-             res[:jpy_ttl] - res[:jpy],
-             res[:btc],
-             res[:btc_ttl] - res[:btc] )
+                  res[:jpy],
+                  res[:jpy_ttl] - res[:jpy],
+                  res[:btc],
+                  res[:btc_ttl] - res[:btc] )
       @as[ m[:name] ] = { :vBTC => res[:btc], :vJPY => res[:jpy] }
 
       bal[:jpy] += res[:jpy]
@@ -43,11 +36,6 @@ class Arbitrage
       if res[:open_orders] then
         res2 = m[:tapi].get_active_orders(:btc)
         if res2[:success] == true then
-          if m[:name] == "bitFlyer" then
-            res2[:orders].each do |o|
-              @log.printf( "%4s %10f at %10f\n", o[:type], o[:amount].to_f, o[:price].to_f )
-            end
-          end
           res2[:orders].each do |o|
             if o[:type] == "sell" then
               bal[:jpy_inuse] += o[:price] * o[:amount]
@@ -86,26 +74,17 @@ class Arbitrage
         return
       end
 
-      # printf( "%s:\t", m[:name] )
-      # printf( "asks = %f, %f,\t", d[:asks][0][0].to_f, d[:asks][0][1].to_f )
-      # printf( "bids = %f, %f\n", d[:bids][0][0].to_f, d[:bids][0][1].to_f )
       # 売り板のオーダー
       uVol = m[:rule][:uVol]
-      asks.push [ d[:asks][0][0], min(d[:asks][0][1], floor_unit( @as[m[:name]][:vJPY] * m[:rule][:ratioJPY] / d[:asks][0][0], uVol)) ]
+      asks.push [ d[:asks][0][0],
+                  min(d[:asks][0][1],floor_unit(@as[m[:name]][:vJPY]*m[:rule][:ratioJPY]/d[:asks][0][0], uVol))
+                ]
 
       # 買い板のオーダー
-      bids.push [ d[:bids][0][0], min(d[:bids][0][1], floor_unit( @as[m[:name]][:vBTC] * m[:rule][:ratioJPY],                  uVol)) ]
+      bids.push [ d[:bids][0][0],
+                  min(d[:bids][0][1],floor_unit(@as[m[:name]][:vBTC]*m[:rule][:ratioJPY],uVol))]
       
     end
-
-    # printf( "asks\n" )
-    # asks.each do |e|
-    #   printf( "  %f, %f\n", e[0], e[1] )
-    # end
-    # printf( "bids\n" )
-    # bids.each do |e|
-    #   printf( "  %f, %f\n", e[0], e[1] )
-    # end
 
     # 一番Gainが大きい組み合わせをさがす。
     max_gain = 0.01 # 0.01以上のgainがないと取引しない。
@@ -119,34 +98,16 @@ class Arbitrage
         vol = floor_unit( min( asks[i][1], bids[j][1] ), uVol )
 
         if @mkt[i][:name] == "bitFlyer" then
-
-          # if asks[i][1] >= vol then # 買い注文が大きい場合は切り捨て
-          #   a = floor_unit( asks[i][0] * vol, 1.0 )
-          # else                      # 買い注文が小さい場合は切り上げ
-          #   a = ceil_unit( asks[i][0] * vol, 1.0 )
-          # end
-          
-        # 不確定なのでworst caseで考える。
-        # 自分が売るときは高い方
+          # 不確定なのでworst caseで考える。
+          # 自分が売るときは高い方
           a = ceil_unit( asks[i][0] * vol, 1.0 )
-
         else
           a = asks[i][0] * vol
         end
         if @mkt[j][:name] == "bitFlyer" then
-
-        # 不確定なのでworst caseで考える。
-        # 自分が買うときは高い方
+          # 不確定なのでworst caseで考える。
+          # 自分が買うときは高い方
           b = floor_unit( bids[j][0] * vol, 1.0 )
-
-        # if vol >= bids[j][1] then # 買い注文が大きい場合は切り捨て
-        #   b = floor_unit( bids[j][0] * vol, 1.0 )
-        # else                      # 買い注文が小さい場合は切り上げ
-          #   b = ceil_unit( bids[j][0] * vol, 1.0 )
-        # end
-
-          
-          
         else
           b = bids[j][0] * vol
         end
@@ -154,7 +115,6 @@ class Arbitrage
         afee = @mkt[i][:rule][:fee] * a
         bfee = @mkt[j][:rule][:fee] * b
 
-        #gain = ( bids[j][0] - asks[i][0] ) * vol
         gain = b - a - afee - bfee
 
         if gain > max_gain and vol > 0 and (bids[j][0] / asks[i][0] < 1.02) then
@@ -201,4 +161,3 @@ class Arbitrage
   end
 
 end
-

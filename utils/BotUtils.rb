@@ -15,12 +15,10 @@ module BotUtils
         trade_status = YAML::load f
         f.close
 
-        p trade_status
         if trade_status != nil then
             trade_status.keys.each do |k|
                 trade_status[k] = BigDecimal.new(trade_status[k],pre)
             end
-            p trade_status
         end
         return trade_status
     end
