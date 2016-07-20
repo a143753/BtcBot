@@ -44,7 +44,7 @@ if $PROGRAM_NAME == __FILE__ then
     :fee           => 0.0,
     :ratioJPY      => 0.50,
     :ratioKP       => 0.03,                     # JPY持ち高目標
-    :uVol          => BigDecimal.new("0.0001"),
+    :uVol          => BigDecimal.new("0.001"),
     :uPrice        => BigDecimal.new("5.0"),
     :tSleep        => 1,   # seconds
     :tAverage      => 2*60*60 # seconds
