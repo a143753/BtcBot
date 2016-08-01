@@ -109,17 +109,17 @@ if $PROGRAM_NAME == __FILE__ then
   #                          {:name=>'bitFlyer', :papi=>papi_bf,:tapi=>tapi_bf,:rule=>rule_bf} )
 
   bot_zaif = BitcoinBot.new(tapi_zf, papi_zf, rule_zf, LOG_DIR, "zf", ZF_STAT_FILE, false)
-  bot_bf   = BitcoinBot.new(tapi_cc, papi_cc, rule_cc, LOG_DIR, "cc", CC_STAT_FILE, false)
+  bot_cc   = BitcoinBot.new(tapi_cc, papi_cc, rule_cc, LOG_DIR, "cc", CC_STAT_FILE, false)
 
   count = 0
   while true do
     bot_arb.run
     sleep(3)
 
-    #        bot_zaif.run
-    #        sleep(3)
-    #        bot_bf.run
-    #        sleep(10)
+    bot_zaif.run
+    sleep(3)
+    bot_cc.run
+    sleep(10)
 
     count += 1
     if count > 20 then
