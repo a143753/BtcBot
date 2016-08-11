@@ -78,6 +78,10 @@ module BitFlyer
           @result = nil
         end
       else
+          printf "bitFlyer post response error"
+          p method
+          p path
+          p params
         p response
         p response.body
         @result = nil
@@ -97,7 +101,7 @@ module BitFlyer
           "child_order_type" => "LIMIT", # 指値
           "side"             => "BUY",
           "price"            => Integer(price),
-          "size"             => amount }
+          "size"             => amount.to_s("F") }
         #                assert_equal(price, Integer(price))
       end
       
@@ -122,13 +126,14 @@ module BitFlyer
           "child_order_type" => "LIMIT", # 指値
           "side"             => "SELL",
           "price"            => Integer(price),
-          "size"             => amount }
+          "size"             => amount.to_s("F") }
       end
 
       ret = post("POST", "/v1/me/sendchildorder", params )
       
       if !ret.is_a?(Hash) then
         printf("tapi:as unexpected response\n")
+        printf("price=%f, amount=%f\n", price, amount )
         p ret
         return false
       else

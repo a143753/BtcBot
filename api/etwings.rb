@@ -60,7 +60,7 @@ module Etwings
         printf("etwings::post response error %d\n",response.code.to_i)
         p path
         p URI.escape(param)
-        p header
+        p headers
         @result = nil
       end
       @response = response

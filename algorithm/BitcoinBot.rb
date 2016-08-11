@@ -1,4 +1,5 @@
 # coding: utf-8
+require 'logger'
 class BitcoinBot
   include BotUtils
   attr_accessor :assertions
@@ -24,7 +25,8 @@ class BitcoinBot
     @touch_d = false
 
     @ts = loadTradeStatus @STATUS_FILE, 4
-    @log = File.open(Time.now.strftime("#{log_dir}/#{prefix}_%Y%m%d%H%M%S") + ".log", "w")
+    #    @log = File.open(Time.now.strftime("#{log_dir}/#{prefix}_%Y%m%d%H%M%S") + ".log", "w")
+    @log = Logger.new("#{log_dir}/#{prefix}.log", "daily")
   end
 
   def updateAccount
@@ -32,8 +34,8 @@ class BitcoinBot
       res = @tapi.get_info
       if res == nil or not res[:success] then
         # API errorを10回くりかえした後、 nilが返ってきて落ちたことあり(2015/7/13)
-        @log.puts res.to_s
-        @log.printf("BitcoinBot.updateAccount API Error.\n")
+        @log.error format("BitcoinBot.updateAccount API Error.")
+        @log.error res.to_s
         p res
         return false
       end
@@ -48,8 +50,7 @@ class BitcoinBot
       @as[:vJPY_TTL] = res[:jpy_ttl]
     end
 
-    @log.printf("dt: %s\n", Time.now.strftime("%Y-%m-%d %H:%M:%S"))
-    @log.printf("as: vBTC=%f,vJPY=%f,vBTC_TTL=%f,vJPY_TTL=%f,avg=%f\n", @as[:vBTC], @as[:vJPY], @as[:vBTC_TTL], @as[:vJPY_TTL], calcAverage(@ts))
+    @log.info format("as: vBTC=%f,vJPY=%f,vBTC_TTL=%f,vJPY_TTL=%f,avg=%f", @as[:vBTC], @as[:vJPY], @as[:vBTC_TTL], @as[:vJPY_TTL], calcAverage(@ts))
     return true
   end
 
@@ -63,8 +64,8 @@ class BitcoinBot
         # 買い注文を発行して5分以上activeだったらcancelする
         if Time.now.to_i - order[:timestamp] > 5*60 then
           @tapi.cancel_order(order[:id])
-          @log.printf("cancel %s\n", order.to_s )
-          @log.printf("@ts = %s\n", @ts.to_s )
+          @log.info format("cancel %s", order.to_s )
+          @log.info format("@ts = %s", @ts.to_s )
 
           if @ts then
             @ts.keys.each do |k|
@@ -79,7 +80,7 @@ class BitcoinBot
           else
             # 持ち高がask orderより大きい場合、askが成立していなくてもbidを出してしまう
             # その場合、@tsがnilであることがありうる。
-            @log.printf(" bid order already issued\n")
+            @log.warn format(" bid order already issued\n")
             #raise "order and @ts mismatch error"
           end
         end
@@ -104,16 +105,16 @@ class BitcoinBot
     @history.push(@depth[:asks][0][0])
     @history.delete_at(0) if @history.size > (@R[:tAverage] / @R[:tSleep])
 
-    @log.printf("mi: asks=[%d,%f],bids=[%d,%f],rH=%.1f,my_avg=%f,avg=%f\n",
-                @depth[:asks][0][0],@depth[:asks][0][1],
-                @depth[:bids][0][0],@depth[:bids][0][1],
-                @recentHigh,
-                calcAverage(@ts),
-                @history.inject(:+) / @history.size)
+    @log.info format("mi: asks=[%d,%f],bids=[%d,%f],rH=%.1f,my_avg=%f,avg=%f",
+                     @depth[:asks][0][0],@depth[:asks][0][1],
+                     @depth[:bids][0][0],@depth[:bids][0][1],
+                     @recentHigh,
+                     calcAverage(@ts),
+                     @history.inject(:+) / @history.size)
   end
 
   def judgeSell
-    @log.printf("js: %s\n", @ts.to_s) if @ts != nil
+    @log.info format("js: %s", @ts.to_s) if @ts != nil
     return @ts != nil
   end
 
@@ -159,7 +160,7 @@ class BitcoinBot
         @touch_d = true
       end
 
-      @log.printf("jb: fB1=%f,fB2=%f,mB=%.1f,ha=%.1f,hs=%f,hr=%f,judge=%s,o=%s\n",
+      @log.info format("jb: fB1=%f,fB2=%f,mB=%.1f,ha=%.1f,hs=%f,hr=%f,judge=%s,o=%s",
                    firstBuy1,firstBuy2,0,havg,hsigma,hratio,judge,o)
     end
     @da_last = @depth[:asks][0][0]
@@ -183,7 +184,7 @@ class BitcoinBot
     raise unless is_bigdecimal( [ vol, price ] )
     
     if vol > 0 and vjpy >= vol * price then
-      @log.printf(" buy  %f btc at %f\n", vol, price)
+      @log.info format(" buy  %f btc at %f", vol, price)
       @tradeTime = Time.now
       if @SIM_MODE then
         @as[:vBTC]    += vol
@@ -239,7 +240,7 @@ class BitcoinBot
       # elsif r <= @R[:ratioBTC] * 0.95 then  # BTC比率が目標より小さいときは少なく売る
       #   vol -= unit if vol > unit
       # end
-      # @log.printf(" vol=%f, r=%f, unit=%f\n",vol, r, unit)
+      # @log.info format(" vol=%f, r=%f, unit=%f\n",vol, r, unit)
 
     else
       # まだaccountに反映されていないので待ち
@@ -249,7 +250,7 @@ class BitcoinBot
 
     raise unless is_bigdecimal( [ vol, price ] )
 
-    @log.printf(" sell  %f btc at %f\n", vol, price)
+    @log.info format(" sell  %f btc at %f", vol, price)
     if @SIM_MODE then
       @as[:vBTC]    -= vol
       @as[:vJPY]    += vol * price
@@ -288,10 +289,6 @@ class BitcoinBot
         actionSell
       end
     end
-    if @log.closed? then
-      $stdout.printf("BitcoinBot @log closed\n")
-    end
     $stdout.flush
-    @log.flush
   end
 end
