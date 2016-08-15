@@ -25,7 +25,6 @@ class BitcoinBot
     @touch_d = false
 
     @ts = loadTradeStatus @STATUS_FILE, 4
-    #    @log = File.open(Time.now.strftime("#{log_dir}/#{prefix}_%Y%m%d%H%M%S") + ".log", "w")
     @log = Logger.new("#{log_dir}/#{prefix}.log", "daily")
   end
 
@@ -172,13 +171,19 @@ class BitcoinBot
     # price(JPY/BTC)は1円単位
     price = @depth[:asks][0][0]
 
+    # 買う量。持ち分に:ratioKPをかけた分
     vjpy = max( @as[:vJPY] - ( @as[:vJPY_TTL] + price * @as[:vBTC_TTL] ) * @R[:ratioKP], 0 )
-
     volJpy = ceil_unit(vjpy * @R[:ratioJPY] / price, @R[:uVol])
+
+    # 売りに出ている量が買いたい量より小さい場合は全部買う。
     if volJpy > @depth[:asks][0][1]
       vol = floor_unit(@depth[:asks][0][1], @R[:uVol])
     else
       vol = volJpy
+    end
+
+    if @R[:name] == :bitflyer then
+      price = ceil_unit( price * vol, 1.0 ) / vol
     end
 
     raise unless is_bigdecimal( [ vol, price ] )
@@ -229,7 +234,12 @@ class BitcoinBot
     end
 
     if @as[:vBTC] >= @ts[@ts.keys.sort[0]] then
-      vol   = @ts[@ts.keys.sort[0]]
+
+      if @ts[@ts.keys.sort[0]] < @R[:uVol] then
+        vol = 0
+      else
+        vol   = @ts[@ts.keys.sort[0]]
+      end
 
       # BTC持ち高の1%単位で、portofolioを調整する
       # unit = ceil_unit((@as[:vBTC] - sum) * 0.01, @R[:uVol])
@@ -247,6 +257,14 @@ class BitcoinBot
       # ここで回数を数え、一定回数を越えたらキャンセルする TODO
       return
     end
+
+    if @R[:name] == :bitflyer then
+      pdash = ceil_unit( ceil_unit( price * vol, 1.0 ) / vol, 1.0 )
+      @log.info format(" (bf.sell) orig (%f,%f) mod (%f,%f)", price,vol, pdash, vol )
+      price = BigDecimal.new( pdash, 10 )
+    end
+
+    raise if price < @ts.keys.sort[0]
 
     raise unless is_bigdecimal( [ vol, price ] )
 

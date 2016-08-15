@@ -41,6 +41,7 @@ if $PROGRAM_NAME == __FILE__ then
   tapi_zf = Etwings::TradeApi.new KEY['etwings']['PUB_KEY'], KEY['etwings']['SEC_KEY']
   papi_zf = Etwings::PublicApi.new
   rule_zf = {
+    :name          => :zaif,
     :fee           => 0.0,
     :ratioJPY      => 0.50,
     :ratioKP       => 0.03,                     # JPY持ち高目標
@@ -56,6 +57,7 @@ if $PROGRAM_NAME == __FILE__ then
   tapi_cc = CoinCheck::TradeApi.new KEY['coincheck']['PUB_KEY'], KEY['coincheck']['SEC_KEY']
   papi_cc = CoinCheck::PublicApi.new
   rule_cc = {
+    :name          => :coincheck,
     :fee           => 0.0015,                       # 取引手数料
     :ratioJPY      => 0.50,                 # 1回あたりの買い高。JPY持ち高に対して
     :ratioKP       => 0.05,                     # JPY持ち高目標。暫定
@@ -71,6 +73,7 @@ if $PROGRAM_NAME == __FILE__ then
   tapi_bf = BitFlyer::TradeApi.new KEY['bitFlyer']['PUB_KEY'], KEY['bitFlyer']['SEC_KEY']
   papi_bf = BitFlyer::PublicApi.new
   rule_bf = {
+    :name          => :bitflyer,
     :fee           => 0.0,                  # 取引手数料
     :ratioJPY      => 0.50,                 # 1回あたりの買い高。JPY持ち高に対して
     :ratioKP       => 0.05,                     # JPY持ち高目標。暫定
@@ -86,6 +89,7 @@ if $PROGRAM_NAME == __FILE__ then
   tapi_bb = BtcBox::TradeApi.new KEY['btcbox']['PUB_KEY'], KEY['btcbox']['SEC_KEY']
   papi_bb = BtcBox::PublicApi.new
   rule_bb = {
+    :name          => "BtcBox",
     :fee           => 0.0,                  # 取引手数料
     :ratioJPY      => 0.50,                 # 1回あたりの買い高。JPY持ち高に対して
     :ratioKP       => 0.05,                     # JPY持ち高目標。暫定
@@ -110,6 +114,7 @@ if $PROGRAM_NAME == __FILE__ then
 
   bot_zaif = BitcoinBot.new(tapi_zf, papi_zf, rule_zf, LOG_DIR, "zf", ZF_STAT_FILE, false)
   bot_cc   = BitcoinBot.new(tapi_cc, papi_cc, rule_cc, LOG_DIR, "cc", CC_STAT_FILE, false)
+  bot_bf   = BitcoinBot.new(tapi_bf, papi_bf, rule_bf, LOG_DIR, "bf", CC_STAT_FILE, false)
 
   count = 0
   while true do
@@ -117,8 +122,8 @@ if $PROGRAM_NAME == __FILE__ then
     sleep(3)
 
     bot_zaif.run
-    sleep(3)
     bot_cc.run
+    bot_bf.run
     sleep(10)
 
     count += 1
