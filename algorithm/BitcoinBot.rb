@@ -94,6 +94,7 @@ class BitcoinBot
       break if @depth[:success]
       puts "btc.get_depth failed"
       p @depth
+      $stdout.flush
       sleep(1)
     end
 

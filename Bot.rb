@@ -119,12 +119,12 @@ if $PROGRAM_NAME == __FILE__ then
   count = 0
   while true do
     bot_arb.run
-    sleep(3)
+    sleep(2)
 
     bot_zaif.run
     bot_cc.run
     bot_bf.run
-    sleep(10)
+    sleep(2)
 
     count += 1
     if count > 20 then

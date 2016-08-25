@@ -61,6 +61,7 @@ module Etwings
         p path
         p URI.escape(param)
         p headers
+        p response.body
         @result = nil
       end
       @response = response
@@ -247,6 +248,9 @@ module Etwings
       if response.code.to_i == 200
         @result = JSON.parse(response.body)
       else
+        printf("etwings::post response error %d\n",response.code.to_i)
+        p url
+        p response.body
         @result = nil
       end
       @response = response
