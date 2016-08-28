@@ -23,6 +23,7 @@ class BitcoinBot
     @history = []
     @touch_u = false
     @touch_d = false
+    @touch_l = false
 
     @ts = loadTradeStatus @STATUS_FILE, 4
     @log = Logger.new("#{log_dir}/#{prefix}.log", "daily")
@@ -44,7 +45,7 @@ class BitcoinBot
       @as[:vJPY_TTL] = res[:jpy_ttl]
     end
 
-    @log.info format("as: vBTC=%f,vJPY=%f,vBTC_TTL=%f,vJPY_TTL=%f", @as[:vBTC], @as[:vJPY], @as[:vBTC_TTL], @as[:vJPY_TTL])
+    @log.info format("ua: vBTC=%f,vJPY=%f,vBTC_TTL=%f,vJPY_TTL=%f", @as[:vBTC], @as[:vJPY], @as[:vBTC_TTL], @as[:vJPY_TTL])
     return true
   end
 
@@ -84,32 +85,21 @@ class BitcoinBot
       firstBuyL = (havg + hsigma * 1) # 順張り
       firstBuy2 = (havg - hsigma)
 
-      # 逆張りで買う場合、1度平均に戻るまで次は買わない
-      if @depth[:asks][0][0] >= havg then
-        @touch_d = false
-      end
-      if @depth[:asks][0][0] <= firstBuyL then
-        if @touch_u then
+      if @depth[:asks][0][0] >= firstBuy1 then
+        if (@da_last < firstBuy1) and @touch_u == true then
           judge = true
           o = "j"
         end
         @touch_u = false
-      end
-
-      if    (@da_last < firstBuy1) and (@depth[:asks][0][0] > firstBuy1) then
-        # 順張り
-        if @touch_u then
-          # judge = true
-          # 順張りは不調なので無効
-          # o = "j"
-        end
+      elsif @depth[:asks][0][0] < firstBuyL then
         @touch_u = true
-      elsif (@da_last > firstBuy2) and (@depth[:asks][0][0] < firstBuy2) then
-        if not @touch_d  then
+      elsif @depth[:asks][0][0] < firstBuy2 then
+        if @da_last > firstBuy2 then
           judge = true
           o = "g"
         end
-        @touch_d = true
+      else
+        ;
       end
 
       @log.info format("jb: fB1=%f,fB2=%f,mB=%.1f,ha=%.1f,hs=%f,hr=%f,judge=%s,o=%s",
@@ -139,6 +129,8 @@ class BitcoinBot
       price = ceil_unit( price * vol, 1.0 ) / vol
     end
 
+    @log.info format("ab: vjpy=%f,volJpy=%f,vol=%f,price=%f\n",vjpy,volJpy,vol,price)
+
     raise unless is_bigdecimal( [ vol, price ] )
     
     if vol > 0 and vjpy >= vol * price then
@@ -154,21 +146,21 @@ class BitcoinBot
         end
       end
 
-      if @ts and @ts.keys.include? price then
-        @ts[price] += vol
+      if @ts["buy"] and @ts["buy"].keys.include? price then
+        @ts["buy"][price] += vol
       else
-        @ts = { price => vol }
+        @ts["buy"] = { price => vol }
       end
       @recentHigh = @depth[:asks][0][0]
       saveTradeStatus @ts, @STATUS_FILE unless vol == 0
     end
 
-    raise if @ts != nil and !is_bigdecimal @ts
+    raise if @ts["buy"] != nil and !is_bigdecimal @ts["buy"]
   end
 
   def judgeCloseBuy
-    @log.info format("jcb: %s", @ts.to_s) if @ts != nil
-    return @ts != nil
+    @log.info format("jcb: %s", @ts["buy"].to_s) if @ts["buy"] != nil
+    return @ts["buy"] != nil
   end
 
   def closeBuy
@@ -177,25 +169,25 @@ class BitcoinBot
     havg, hsigma, hratio = analysis(@history,@R[:tSleep])
 
     if @history.size < 100 then
-      price = ceil_unit(@ts.keys.sort[0] * 1.005, @R[:uPrice])
+      price = ceil_unit(@ts["buy"].keys.sort[0] * 1.005, @R[:uPrice])
     else
-      if hsigma / @ts.keys.sort[0] > 0.01 then
-        price = ceil_unit(@ts.keys.sort[0] * 1.01, @R[:uPrice])
+      if hsigma / @ts["buy"].keys.sort[0] > 0.01 then
+        price = ceil_unit(@ts["buy"].keys.sort[0] * 1.01, @R[:uPrice])
       else
-        price = ceil_unit(@ts.keys.sort[0] + 0.5 * hsigma, @R[:uPrice])
+        price = ceil_unit(@ts["buy"].keys.sort[0] + 0.5 * hsigma, @R[:uPrice])
       end
     end
 
     sum = 0 # まだ売りorderを出していないpositionの合計
-    @ts.keys.each do |k|
-      sum += @ts[k]
+    @ts["buy"].keys.each do |k|
+      sum += @ts["buy"][k]
     end
 
-    if @as[:vBTC] >= @ts[@ts.keys.sort[0]] then
-      if @ts[@ts.keys.sort[0]] < @R[:uVol] then
+    if @as[:vBTC] >= @ts["buy"][@ts["buy"].keys.sort[0]] then
+      if @ts["buy"][@ts["buy"].keys.sort[0]] < @R[:uVol] then
         vol = 0
       else
-        vol   = @ts[@ts.keys.sort[0]]
+        vol   = @ts["buy"][@ts["buy"].keys.sort[0]]
       end
     else
       # まだaccountに反映されていないので待ち
@@ -209,7 +201,7 @@ class BitcoinBot
       price = BigDecimal.new( pdash, 10 )
     end
 
-    raise if price < @ts.keys.sort[0]
+    raise if price < @ts["buy"].keys.sort[0]
 
     raise unless is_bigdecimal( [ vol, price ] )
 
@@ -226,15 +218,15 @@ class BitcoinBot
       sleep(1)
     end
 
-    @ts.delete @ts.keys.sort[0]
-    if @ts == {} then
-      @ts = nil
+    @ts["buy"].delete @ts["buy"].keys.sort[0]
+    if @ts["buy"] == {} then
+      @ts["buy"] = nil
     end
     saveTradeStatus @ts, @STATUS_FILE
 
     @recentHigh = @depth[:asks][0][0]
     
-    raise if @ts != nil and !is_bigdecimal @ts
+    raise if @ts["buy"] != nil and !is_bigdecimal @ts["buy"]
 
   end
 
@@ -247,57 +239,46 @@ class BitcoinBot
     else
       havg, hsigma, hratio = analysis(@history,@R[:tSleep])
 
-      firstSell1 = (havg - hsigma * 2) # 順張り
-      firstSellL = (havg - hsigma * 1) 
+      firstSell1 = (havg - 2 * hsigma) # 順張り
+      firstSellL = (havg - hsigma) 
       firstSell2 = (havg + hsigma)     # 逆張り
 
-      # 逆張りで売る場合、1度平均に戻るまで次は買わない
-      if @depth[:asks][0][0] >= havg then
-        @touch_d = false
-      end
-      if @depth[:asks][0][0] >= firstSellL then
-        if @touch_u then
-          judge = true
-          o = "j"
-        end
-        @touch_u = false
-      end
-
-      if    (@da_last > firstSell1) and (@depth[:asks][0][0] < firstSell1) then
-        # 順張り
-        if @touch_u then
-          # judge = true
-          # 順張りは不調なので無効
-          # o = "j"
-        end
-        @touch_u = true
-      elsif (@da_last < firstSell2) and (@depth[:asks][0][0] > firstSell2) then
-        if not @touch_d  then
+      if @depth[:bids][0][0] > firstSell2 then # ボリンジャーバンドの上を越えたら
+        if @da_last < firstSell2 then
           judge = true
           o = "g"
         end
-        @touch_d = true
+      elsif @depth[:bids][0][0] > firstSellL then
+        @touch_l = true
+      elsif @depth[:bids][0][0] < firstSell1 then
+        if (@da_last > firstSell1) and @touch_l == true then
+          judge = true
+          o = "j"
+        end
+        @touch_l = false
+      else
+        ;
       end
 
       @log.info format("js: fS1=%f,fS2=%f,mB=%.1f,ha=%.1f,hs=%f,hr=%f,judge=%s,o=%s",
                    firstSell1,firstSell2,0,havg,hsigma,hratio,judge,o)
     end
-    @da_last = @depth[:asks][0][0]
+    @da_last = @depth[:bids][0][0]
     return judge
   end
 
   def actionSell
     # 売買するbtcは0.0001 btc単位
     # price(JPY/BTC)は1円単位
-    price = @depth[:asks][0][0]
+    price = @depth[:bids][0][0]
 
     # 買う量。持ち分に:ratioKPをかけた分
-    vjpy = max( @as[:vJPY] - ( @as[:vJPY_TTL] + price * @as[:vBTC_TTL] ) * @R[:ratioKP], 0 )
-    volJpy = ceil_unit(vjpy * @R[:ratioJPY] / price, @R[:uVol])
+    #    vjpy = max( @as[:vJPY] - ( @as[:vJPY_TTL] + price * @as[:vBTC_TTL] ) * @R[:ratioKP], 0 )
+    volJpy = ceil_unit( @as[:vBTC] * @R[:ratioKP] / price, @R[:uVol])
 
     # 売りに出ている量が買いたい量より小さい場合は全部買う。
-    if volJpy > @depth[:asks][0][1]
-      vol = floor_unit(@depth[:asks][0][1], @R[:uVol])
+    if volJpy > @depth[:bids][0][1]
+      vol = floor_unit(@depth[:bids][0][1], @R[:uVol])
     else
       vol = volJpy
     end
@@ -308,34 +289,36 @@ class BitcoinBot
 
     raise unless is_bigdecimal( [ vol, price ] )
     
-    if vol > 0 and vjpy >= vol * price then
+    @log.info format("as: volJpy=%f,vol=%f,price=%f\n",volJpy,vol,price)
+
+    if vol > 0 then
       @log.info format(" sell  %f btc at %f", vol, price)
       @tradeTime = Time.now
       if @SIM_MODE then
         @as[:vBTC]    += vol
         @as[:vJPY]    -= vol * price
       else
-#        ret = @tapi.action_sell(:btc, price, vol)
+#        ret = @tapi.action_buy(:btc, price, vol)
 #        if ret == false then
 #          raise "exception in actionSell"
 #        end
       end
 
-      if @ts and @ts.keys.include? price then
-        @ts[price] += vol
+      if @ts["sell"] and @ts["sell"].keys.include? price then
+        @ts["sell"][price] += vol
       else
-        @ts = { price => vol }
+        @ts["sell"] = { price => vol }
       end
-      @recentHigh = @depth[:asks][0][0]
+      @recentHigh = @depth[:bids][0][0]
       saveTradeStatus @ts, @STATUS_FILE unless vol == 0
     end
 
-    raise if @ts != nil and !is_bigdecimal @ts
+    raise if @ts["sell"] != nil and !is_bigdecimal @ts["sell"]
   end
 
   def judgeCloseSell
-    @log.info format("jcs: %s", @ts.to_s) if @ts != nil
-    return @ts != nil
+    @log.info format("jcs: %s", @ts["sell"].to_s) if @ts["sell"] != nil
+    return @ts["sell"] != nil
   end
 
   def closeSell
@@ -344,25 +327,25 @@ class BitcoinBot
     havg, hsigma, hratio = analysis(@history,@R[:tSleep])
 
     if @history.size < 100 then
-      price = ceil_unit(@ts.keys.sort[0] * 1.005, @R[:uPrice])
+      price = ceil_unit(@ts["sell"].keys.sort[0] * 1.005, @R[:uPrice])
     else
-      if hsigma / @ts.keys.sort[0] > 0.01 then
-        price = ceil_unit(@ts.keys.sort[0] * 1.01, @R[:uPrice])
+      if hsigma / @ts["sell"].keys.sort[0] > 0.01 then
+        price = ceil_unit(@ts["sell"].keys.sort[0] * 1.01, @R[:uPrice])
       else
-        price = ceil_unit(@ts.keys.sort[0] + 0.5 * hsigma, @R[:uPrice])
+        price = ceil_unit(@ts["sell"].keys.sort[0] + 0.5 * hsigma, @R[:uPrice])
       end
     end
 
     sum = 0 # まだ売りorderを出していないpositionの合計
-    @ts.keys.each do |k|
-      sum += @ts[k]
+    @ts["sell"].keys.each do |k|
+      sum += @ts["sell"][k]
     end
 
-    if @as[:vBTC] >= @ts[@ts.keys.sort[0]] then
-      if @ts[@ts.keys.sort[0]] < @R[:uVol] then
+    if @as[:vBTC] >= @ts["sell"][@ts["sell"].keys.sort[0]] then
+      if @ts["sell"][@ts["sell"].keys.sort[0]] < @R[:uVol] then
         vol = 0
       else
-        vol   = @ts[@ts.keys.sort[0]]
+        vol   = @ts["sell"][@ts["sell"].keys.sort[0]]
       end
     else
       # まだaccountに反映されていないので待ち
@@ -376,7 +359,7 @@ class BitcoinBot
       price = BigDecimal.new( pdash, 10 )
     end
 
-    raise if price < @ts.keys.sort[0]
+    raise if price < @ts["sell"].keys.sort[0]
 
     raise unless is_bigdecimal( [ vol, price ] )
 
@@ -385,7 +368,7 @@ class BitcoinBot
       @as[:vBTC]    -= vol
       @as[:vJPY]    += vol * price
     else
-#      ret = @tapi.action_sell(:btc, price, vol)
+#      ret = @tapi.action_buy(:btc, price, vol)
 #      if ret == false then
 #        # order not succeed
 #        raise "exception in closeBuy"
@@ -393,15 +376,15 @@ class BitcoinBot
       sleep(1)
     end
 
-    @ts.delete @ts.keys.sort[0]
-    if @ts == {} then
-      @ts = nil
+    @ts["sell"].delete @ts["sell"].keys.sort[0]
+    if @ts["sell"] == {} then
+      @ts["sell"] = nil
     end
     saveTradeStatus @ts, @STATUS_FILE
 
-    @recentHigh = @depth[:asks][0][0]
+    @recentHigh = @depth[:bids][0][0]
     
-    raise if @ts != nil and !is_bigdecimal @ts
+    raise if @ts["sell"] != nil and !is_bigdecimal @ts["sell"]
 
   end
 
