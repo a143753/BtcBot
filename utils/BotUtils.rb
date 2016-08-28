@@ -61,20 +61,6 @@ module BotUtils
         return asum / anum, bsum / bnum, (asum + bsum) / (anum + bnum)
     end
 
-    def calcAverage(trade_status)
-        yen  = 0
-        mona = 0
-        if trade_status == nil or trade_status == {} then
-            return 0
-        else
-            trade_status.keys.each do |price|
-                yen  += price * trade_status[price]
-                mona += trade_status[price]
-            end
-            return yen / mona
-        end
-    end
-
     def analysis(history, tsleep)
         avg = history.inject(:+) / history.size
 
