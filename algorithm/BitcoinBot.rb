@@ -289,7 +289,7 @@ class BitcoinBot
 
     raise unless is_bigdecimal( [ vol, price ] )
     
-    @log.info format("as: volJpy=%f,vol=%f,price=%f\n",volJpy,vol,price)
+    @log.info format("as: volJpy=%f,vol=%f,price=%f",volJpy,vol,price)
 
     if vol > 0 then
       @log.info format(" sell  %f btc at %f", vol, price)
@@ -327,12 +327,12 @@ class BitcoinBot
     havg, hsigma, hratio = analysis(@history,@R[:tSleep])
 
     if @history.size < 100 then
-      price = ceil_unit(@ts["sell"].keys.sort[0] * 1.005, @R[:uPrice])
+      price = ceil_unit(@ts["sell"].keys.sort[0] * 0.995, @R[:uPrice])
     else
       if hsigma / @ts["sell"].keys.sort[0] > 0.01 then
-        price = ceil_unit(@ts["sell"].keys.sort[0] * 1.01, @R[:uPrice])
+        price = ceil_unit(@ts["sell"].keys.sort[0] * 0.99, @R[:uPrice])
       else
-        price = ceil_unit(@ts["sell"].keys.sort[0] + 0.5 * hsigma, @R[:uPrice])
+        price = ceil_unit(@ts["sell"].keys.sort[0] - 0.5 * hsigma, @R[:uPrice])
       end
     end
 
