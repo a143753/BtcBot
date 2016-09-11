@@ -112,5 +112,71 @@ module BotUtils
     
   end
 
+  # bitFlyerで売買金額を計算する関数(buy)
+  def bfBuyAmount( price, vol )
+    raise unless is_bigdecimal( [ vol, price ] )
+    ttl = price * vol
+    # 買う場合はuPriceで切り上げられる
+    trn = ceil_unit( ttl, @R[:uPrice] )
+    # 切り上げ誤差
+    dif = ttl - trn
+    # 実際の買い値。ただし、整数になるわけではない。
+    act = trn / vol
+    # 結局、元のpriceのままorderを出して、売り上げがtrnだと考えればよい
+    return trn
+  end
+
+  # bitFlyerで売買金額を計算する関数(sell)
+  def bfSellAmount( price, vol )
+    raise unless is_bigdecimal( [ vol, price ] )
+    ttl = price * vol
+    # 売る場合はuPriceで切り下げられる
+    trn = floor_unit( ttl, @R[:uPrice] )
+    # 切り上げ誤差
+    dif = trn - ttl
+    # 実際の買い値。ただし、整数になるわけではない。
+    act = trn / vol
+    # 結局、元のpriceのままorderを出して、売り上げがtrnだと考えればよい
+    return trn
+  end
+
+  # bitFlyerでclose sellの価格を決定する関数
+  def bfPriceBuyClose price, vol
+    buy_amount = bfBuyAmount price, vol
+
+    psell = price * 1.01 # 1%の利益を載せる
+    sell_amount = bfSellAmount psell, vol
+    gain = sell_amount - buy_amount
+
+    if gain <= 0 then # もしgainが正でなければ1円の利益を載せる
+      psell = ceil_unit( (buy_amount + 1) / vol, @R[:uPrice] )
+      sell_amount = bfSellAmount psell, vol
+      gain = sell_amount - buy_amount
+    end
+
+    raise if gain < 0
+    printf("gain=%f\n",gain)
+    return psell
+  end
+
+  # bitFlyerでclose buyの価格を決定する関数
+  def bfPriceSellClose price, vol
+    sell_amount = bfSellAmount price, vol
+
+    pbuy = price * 0.99 # 1%の利益を載せる
+    buy_amount = bfBuyAmount pbuy, vol
+    gain = sell_amount - buy_amount
+
+    if gain <= 0 then # もしgainが正でなければ1円の利益を載せる
+      pbuy = floor_unit( (sell_amount - 1) / vol, @R[:uPrice] )
+      buy_amount = bfBuyAmount pbuy, vol
+      gain = sell_amount - buy_amount
+    end
+
+    raise if gain < 0
+    printf("gain=%f\n",gain)
+    return pbuy
+  end
+
 end
 

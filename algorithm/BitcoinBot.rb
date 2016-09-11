@@ -125,10 +125,6 @@ class BitcoinBot
       vol = volJpy
     end
 
-    if @R[:name] == :bitflyer then
-      price = ceil_unit( price * vol, 1.0 ) / vol
-    end
-
     @log.info format("ab: vjpy=%f,volJpy=%f,vol=%f,price=%f",vjpy,volJpy,vol,price)
 
     raise unless is_bigdecimal( [ vol, price ] )
@@ -168,7 +164,12 @@ class BitcoinBot
     # price(JPY/BTC)は1円単位
     havg, hsigma, hratio = analysis(@history,@R[:tSleep])
 
-    price = ceil_unit(@ts["buy"].keys.sort[0] * (1.01+2*@R[:fee]), @R[:uPrice])
+    if @R[:name] != :bitflyer then
+      price = ceil_unit(@ts["buy"].keys.sort[0] * (1.01+2*@R[:fee]), @R[:uPrice])
+    else
+      price = bfPriceBuyClose(@ts["buy"].keys.sort[0],
+                              @ts["buy"][@ts["buy"].keys.sort[0]])
+    end
 
     sum = 0 # まだ売りorderを出していないpositionの合計
     @ts["buy"].keys.each do |k|
@@ -185,13 +186,6 @@ class BitcoinBot
       # まだaccountに反映されていないので待ち
       # ここで回数を数え、一定回数を越えたらキャンセルする TODO
       return
-    end
-
-    # bitFlyerの四捨五入対応
-    if @R[:name] == :bitflyer then
-      pdash = ceil_unit( ceil_unit( price * vol, 1.0 ) / vol, 1.0 )
-      @log.info format(" (bf.sell) orig (%f,%f) mod (%f,%f)", price,vol, pdash, vol )
-      price = BigDecimal.new( pdash, 10 )
     end
 
     raise if price < @ts["buy"].keys.sort[0]
@@ -276,10 +270,6 @@ class BitcoinBot
       vol = volJpy
     end
 
-    if @R[:name] == :bitflyer then
-      price = ceil_unit( price * vol, 1.0 ) / vol
-    end
-
     raise unless is_bigdecimal( [ vol, price ] )
     
     @log.info format("as: volJpy=%f,vol=%f,price=%f",volJpy,vol,price)
@@ -319,7 +309,12 @@ class BitcoinBot
     # price(JPY/BTC)は1円単位
     havg, hsigma, hratio = analysis(@history,@R[:tSleep])
 
-    price = ceil_unit(@ts["sell"].keys.sort[0] * (0.99-2*@R[:fee]), @R[:uPrice])
+    if @R[:name] != :bitflyer then
+      price = ceil_unit(@ts["sell"].keys.sort[0] * (0.99-2*@R[:fee]), @R[:uPrice])
+    else
+      price = bfPriceSellClose(@ts["sell"].keys.sort[0],
+                               @ts["sell"][@ts["sell"].keys.sort[0]])
+    end
 
     sum = 0 # まだ売りorderを出していないpositionの合計
     @ts["sell"].keys.each do |k|
@@ -336,12 +331,6 @@ class BitcoinBot
       # まだaccountに反映されていないので待ち
       # ここで回数を数え、一定回数を越えたらキャンセルする TODO
       return
-    end
-
-    if @R[:name] == :bitflyer then
-      pdash = floor_unit( floor_unit( price * vol, 1.0 ) / vol, 1.0 )
-      @log.info format(" (bf.buy) orig (%f,%f) mod (%f,%f)", price,vol, pdash, vol )
-      price = BigDecimal.new( pdash, 10 )
     end
 
     raise if price > @ts["sell"].keys.sort[0]
