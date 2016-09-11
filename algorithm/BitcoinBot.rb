@@ -129,7 +129,7 @@ class BitcoinBot
       price = ceil_unit( price * vol, 1.0 ) / vol
     end
 
-    @log.info format("ab: vjpy=%f,volJpy=%f,vol=%f,price=%f\n",vjpy,volJpy,vol,price)
+    @log.info format("ab: vjpy=%f,volJpy=%f,vol=%f,price=%f",vjpy,volJpy,vol,price)
 
     raise unless is_bigdecimal( [ vol, price ] )
     
@@ -168,15 +168,7 @@ class BitcoinBot
     # price(JPY/BTC)は1円単位
     havg, hsigma, hratio = analysis(@history,@R[:tSleep])
 
-    if @history.size < 100 then
-      price = ceil_unit(@ts["buy"].keys.sort[0] * 1.005, @R[:uPrice])
-    else
-      if hsigma / @ts["buy"].keys.sort[0] > 0.01 then
-        price = ceil_unit(@ts["buy"].keys.sort[0] * 1.01, @R[:uPrice])
-      else
-        price = ceil_unit(@ts["buy"].keys.sort[0] + 0.5 * hsigma, @R[:uPrice])
-      end
-    end
+    price = ceil_unit(@ts["buy"].keys.sort[0] * (1.01+2*@R[:fee]), @R[:uPrice])
 
     sum = 0 # まだ売りorderを出していないpositionの合計
     @ts["buy"].keys.each do |k|
@@ -195,6 +187,7 @@ class BitcoinBot
       return
     end
 
+    # bitFlyerの四捨五入対応
     if @R[:name] == :bitflyer then
       pdash = ceil_unit( ceil_unit( price * vol, 1.0 ) / vol, 1.0 )
       @log.info format(" (bf.sell) orig (%f,%f) mod (%f,%f)", price,vol, pdash, vol )
@@ -291,17 +284,17 @@ class BitcoinBot
     
     @log.info format("as: volJpy=%f,vol=%f,price=%f",volJpy,vol,price)
 
-    if vol > 0 then
+    if vol > 0 and vol <= @as[:vBTC] then
       @log.info format(" sell  %f btc at %f", vol, price)
       @tradeTime = Time.now
       if @SIM_MODE then
         @as[:vBTC]    += vol
         @as[:vJPY]    -= vol * price
       else
-#        ret = @tapi.action_buy(:btc, price, vol)
-#        if ret == false then
-#          raise "exception in actionSell"
-#        end
+        ret = @tapi.action_sell(:btc, price, vol)
+        if ret == false then
+          raise "exception in actionSell"
+        end
       end
 
       if @ts["sell"] and @ts["sell"].keys.include? price then
@@ -326,22 +319,14 @@ class BitcoinBot
     # price(JPY/BTC)は1円単位
     havg, hsigma, hratio = analysis(@history,@R[:tSleep])
 
-    if @history.size < 100 then
-      price = ceil_unit(@ts["sell"].keys.sort[0] * 0.995, @R[:uPrice])
-    else
-      if hsigma / @ts["sell"].keys.sort[0] > 0.01 then
-        price = ceil_unit(@ts["sell"].keys.sort[0] * 0.99, @R[:uPrice])
-      else
-        price = ceil_unit(@ts["sell"].keys.sort[0] - 0.5 * hsigma, @R[:uPrice])
-      end
-    end
+    price = ceil_unit(@ts["sell"].keys.sort[0] * (0.99-2*@R[:fee]), @R[:uPrice])
 
     sum = 0 # まだ売りorderを出していないpositionの合計
     @ts["sell"].keys.each do |k|
       sum += @ts["sell"][k]
     end
 
-    if @as[:vBTC] >= @ts["sell"][@ts["sell"].keys.sort[0]] then
+    if @as[:vJPY] >= @ts["sell"][@ts["sell"].keys.sort[0]] * price then
       if @ts["sell"][@ts["sell"].keys.sort[0]] < @R[:uVol] then
         vol = 0
       else
@@ -354,12 +339,12 @@ class BitcoinBot
     end
 
     if @R[:name] == :bitflyer then
-      pdash = ceil_unit( ceil_unit( price * vol, 1.0 ) / vol, 1.0 )
+      pdash = floor_unit( floor_unit( price * vol, 1.0 ) / vol, 1.0 )
       @log.info format(" (bf.buy) orig (%f,%f) mod (%f,%f)", price,vol, pdash, vol )
       price = BigDecimal.new( pdash, 10 )
     end
 
-    raise if price < @ts["sell"].keys.sort[0]
+    raise if price > @ts["sell"].keys.sort[0]
 
     raise unless is_bigdecimal( [ vol, price ] )
 
@@ -368,11 +353,11 @@ class BitcoinBot
       @as[:vBTC]    -= vol
       @as[:vJPY]    += vol * price
     else
-#      ret = @tapi.action_buy(:btc, price, vol)
-#      if ret == false then
-#        # order not succeed
-#        raise "exception in closeBuy"
-#     end
+      ret = @tapi.action_buy(:btc, price, vol)
+      if ret == false then
+        # order not succeed
+        raise "exception in closeBuy"
+      end
       sleep(1)
     end
 
