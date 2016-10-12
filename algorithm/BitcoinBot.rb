@@ -283,6 +283,7 @@ class BitcoinBot
       else
         ret = @tapi.action_sell(:btc, price, vol)
         if ret == false then
+          @log.error "exception in actionSell"
           raise "exception in actionSell"
         end
       end

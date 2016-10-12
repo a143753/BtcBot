@@ -21,7 +21,7 @@ class Arbitrage
     @mkt.each do |m|
       res = m[:tapi].get_info
       if res[:success] == false then
-        @log.info format("api error: %s.get_info",m[:name])
+        @log.error format("api error: %s.get_info",m[:name])
         return false
       end
       @log.info format("%s: JPY %f, %f(In Use), BTC %f, %f(In Use)",m[:name],

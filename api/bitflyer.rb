@@ -35,6 +35,9 @@ module BitFlyer
 
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
+      http.open_timeout = 5
+      http.read_timeout = 10
+
       headers = {
         'ACCESS-KEY'       => @public_key,
         'ACCESS-TIMESTAMP' => timestamp.to_s,
@@ -264,6 +267,8 @@ module BitFlyer
       max_retry_count.times do |retry_count|
         http = Net::HTTP.new(url.host, url.port)
         http.use_ssl = true if (443==url.port)
+        http.open_timeout = 5
+        http.read_timeout = 10
 
         http.verify_mode = OpenSSL::SSL::VERIFY_PEER
         http.verify_depth = 5
