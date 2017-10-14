@@ -33,8 +33,9 @@ module BtcBox
       
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
-      http.open_timeout = 5
-      http.read_timeout = 10
+      http.open_timeout = 300
+      http.read_timeout = 300
+      http.ssl_timeout  = 300
 
       response = http.post(path, URI.encode_www_form(params))
 
@@ -202,8 +203,9 @@ module BtcBox
       max_retry_count.times do |retry_count|
         http = Net::HTTP.new(url.host, url.port)
         http.use_ssl = true if (443==url.port)
-        http.open_timeout = 5
-        http.read_timeout = 10
+        http.open_timeout = 300
+        http.read_timeout = 300
+        http.ssl_timeout  = 300
 
         http.verify_mode = OpenSSL::SSL::VERIFY_PEER
         http.verify_depth = 5

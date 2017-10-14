@@ -31,6 +31,7 @@ module Bitfinex
       http.use_ssl = true
       http.open_timeout = 5
       http.read_timeout = 10
+      http.ssl_timeout = 30
 
       if type == :get then
         begin 
@@ -262,6 +263,7 @@ module Bitfinex
         http.use_ssl = true if (443==url.port)
         http.open_timeout = 5
         http.read_timeout = 10
+        http.ssl_timeout = 30
 
         http.verify_mode = OpenSSL::SSL::VERIFY_PEER
         http.verify_depth = 5

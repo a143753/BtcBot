@@ -18,7 +18,8 @@ module Etwings
       @secret_key = secret_key
       @response = nil
       @result = nil
-      @nonce = Time.new.to_i
+      #      @nonce = Time.new.to_i
+      @nonce = Time.now.to_i
     end
 
     def post(method, params)
@@ -31,8 +32,9 @@ module Etwings
 
       http = Net::HTTP.new('api.zaif.jp', 443)
       http.use_ssl = true
-      http.open_timeout = 5
-      http.read_timeout = 10
+      http.open_timeout = 300
+      http.read_timeout = 300
+      http.ssl_timeout  = 300
       #            http.set_debug_output(STDERR)
       headers = {
         'Content-Type' => 'application/x-www-form-urlencoded',
@@ -189,7 +191,7 @@ module Etwings
     def get_info
       params = {}
       begin
-        api = post("get_info", params)
+        api = post("get_info2", params)
       rescue Timeout::Error
         printf "etwings::get_info Timeout::Error\n"
         return {:success => false}
@@ -232,8 +234,9 @@ module Etwings
       max_retry_count.times do |retry_count|
         http = Net::HTTP.new(url.host, url.port)
         http.use_ssl = true if (443==url.port)
-        http.open_timeout = 5
-        http.read_timeout = 10
+        http.open_timeout = 300
+        http.read_timeout = 300
+        http.ssl_timeout  = 300
 
         http.verify_mode = OpenSSL::SSL::VERIFY_PEER
         http.verify_depth = 5

@@ -74,7 +74,7 @@ if $PROGRAM_NAME == __FILE__ then
   papi_bf = BitFlyer::PublicApi.new
   rule_bf = {
     :name          => :bitflyer,
-    :fee           => 0.0,                  # 取引手数料
+    :fee           => 0.0015,                  # 取引手数料
     :ratioJPY      => 0.50,                 # 1回あたりの買い高。JPY持ち高に対して
     :ratioKP       => 0.05,                     # JPY持ち高目標。暫定
     :uVol          => BigDecimal.new("0.001"),  # 最低 0.001, 単位 0.00000001
@@ -90,7 +90,7 @@ if $PROGRAM_NAME == __FILE__ then
   papi_bb = BtcBox::PublicApi.new
   rule_bb = {
     :name          => "BtcBox",
-    :fee           => 0.0,                  # 取引手数料
+    :fee           => 0.002,                 # 取引手数料
     :ratioJPY      => 0.50,                 # 1回あたりの買い高。JPY持ち高に対して
     :ratioKP       => 0.05,                     # JPY持ち高目標。暫定
     :uVol          => BigDecimal.new("0.01"),   # 最低 0.01
@@ -119,18 +119,17 @@ if $PROGRAM_NAME == __FILE__ then
   count = 0
   while true do
     bot_arb.run
-    sleep(2)
-
+    $stdout.print "a"
+    $stdout.flush
     bot_zaif.run
+    $stdout.print "z"
+    $stdout.flush
     bot_cc.run
-    bot_bf.run
+    $stdout.print "c"
+    $stdout.flush
+#    bot_bf.run
+#    $stdout.print "b"
+#    $stdout.flush
     sleep(2)
-
-    count += 1
-    if count > 20 then
-      count = 0
-      $stdout.print "."
-      $stdout.flush
-    end
   end
 end

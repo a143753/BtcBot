@@ -35,8 +35,9 @@ module BitFlyer
 
       http = Net::HTTP.new(uri.host, uri.port)
       http.use_ssl = true
-      http.open_timeout = 5
-      http.read_timeout = 10
+      http.open_timeout = 300
+      http.read_timeout = 300
+      http.ssl_timeout  = 300
 
       headers = {
         'ACCESS-KEY'       => @public_key,
@@ -226,6 +227,7 @@ module BitFlyer
       end
 
       if !api.is_a?(Array) then
+        p api
         return { :success => false }
       else
         ret = {}
@@ -239,9 +241,18 @@ module BitFlyer
           when "BTC"
             ret[:btc]     = BigDecimal.new(e["available"],10)
             ret[:btc_ttl] = BigDecimal.new(e["amount"],10)
+          when "BCH"
+            ;
           when "ETH"
             ;
+          when "ETC"
+            ;
+          when "LTC"
+            ;
+          when "MONA"
+            ;
           else
+            printf "BitFlyer::get_info unexpected currency %s\n", e["currency_code"]
             ret[:success] = false
           end
         end
@@ -267,8 +278,9 @@ module BitFlyer
       max_retry_count.times do |retry_count|
         http = Net::HTTP.new(url.host, url.port)
         http.use_ssl = true if (443==url.port)
-        http.open_timeout = 5
-        http.read_timeout = 10
+        http.open_timeout = 300
+        http.read_timeout = 300
+        http.ssl_timeout  = 300
 
         http.verify_mode = OpenSSL::SSL::VERIFY_PEER
         http.verify_depth = 5
